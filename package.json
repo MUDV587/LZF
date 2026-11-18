@@ -1,0 +1,24 @@
+{
+  "name": "com.chasepettit.lzf",
+  "displayName": "LZF",
+  "version": "1.0.0",
+  "unity": "2018.4",
+  "description": "A simple C# LZF compression implementation which attempts to minimize memory allocations.",
+  "keywords": [
+    "LZF",
+    "Compress"
+  ],
+  "license": "MIT",
+  "category": "Compress",
+  "author": {
+    "name": "Chase Pettit",
+    "email": "",
+    "url": "http://chasepettit.com/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Chaser324/LZF.git",
+    "revision": "fe16f2ccde8a8bc39b5b9697476999ae5ea01269"
+  },
+  "type": "library"
+}
