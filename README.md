@@ -65,5 +65,9 @@ using(FileStream outputFile = File.OpenWrite(outputFilePath))
 
 This repository is a fork of [Chaser324/LZF](https://github.com/Chaser324/LZF), restructured as a UPM package (`feature-upm` branch). Original upstream history is preserved.
 
+## Testing
+
+Unit tests live in `Tests/Editor/` (NUnit) and can be run via Unity Test Runner (EditMode). The test suite also passes under plain `dotnet test`.
+
 ## License
 This code is under the BSD 3-Clause license. This essentially means you can freely use it as long as you include the copyright statements as attribution. See the [LICENSE](LICENSE) file for details.

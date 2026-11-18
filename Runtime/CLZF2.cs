@@ -70,6 +70,11 @@ public class CLZF2
     private const uint MAX_OFF = (1 << 13);
     private const uint MAX_REF = ((1 << 8) + (1 << 3));
 
+    /// <summary>
+    /// Safety cap for buffer growth loops. Prevents unbounded expansion on corrupt or adversarial input.
+    /// </summary>
+    private const int MAX_OUTPUT_BUFFER_SIZE = 1 << 30; // 1 GB
+
     #endregion
 
     #region Fields
@@ -96,6 +101,7 @@ public class CLZF2
     /// <returns>Compressed bytes.</returns>
     public static byte[] Compress(byte[] inputBytes)
     {
+        if (inputBytes == null) throw new ArgumentNullException(nameof(inputBytes));
         return Compress(inputBytes, inputBytes.Length);
     }
 
@@ -107,11 +113,16 @@ public class CLZF2
     /// <returns>Compressed bytes.</returns>
     public static byte[] Compress(byte[] inputBytes, int inputLength)
     {
+        if (inputBytes == null) throw new ArgumentNullException(nameof(inputBytes));
+        if (inputLength < 0 || inputLength > inputBytes.Length)
+            throw new ArgumentOutOfRangeException(nameof(inputLength), "Input length must be between 0 and inputBytes.Length.");
+
         byte[] tempBuffer = null;
         int byteCount = Compress(inputBytes, ref tempBuffer, inputLength);
 
         byte[] outputBytes = new byte[byteCount];
-        Buffer.BlockCopy(tempBuffer, 0, outputBytes, 0, byteCount);
+        if (byteCount > 0)
+            Buffer.BlockCopy(tempBuffer, 0, outputBytes, 0, byteCount);
         return outputBytes;
     }
 
@@ -123,6 +134,7 @@ public class CLZF2
     /// <returns>Length of output.</returns>
     public static int Compress(byte[] inputBytes, ref byte[] outputBuffer)
     {
+        if (inputBytes == null) throw new ArgumentNullException(nameof(inputBytes));
         return Compress(inputBytes, ref outputBuffer, inputBytes.Length);
     }
 
@@ -135,10 +147,17 @@ public class CLZF2
     /// <returns>Length of output.</returns>
     public static int Compress(byte[] inputBytes, ref byte[] outputBuffer, int inputLength)
     {
+        if (inputBytes == null) throw new ArgumentNullException(nameof(inputBytes));
+        if (inputLength < 0 || inputLength > inputBytes.Length)
+            throw new ArgumentOutOfRangeException(nameof(inputLength), "Input length must be between 0 and inputBytes.Length.");
+
         // Estimate necessary output buffer size.
-        int outputByteCountGuess = inputBytes.Length * BUFFER_SIZE_ESTIMATE;
+        int outputByteCountGuess = inputLength * BUFFER_SIZE_ESTIMATE;
         if (outputBuffer == null || outputBuffer.Length < outputByteCountGuess)
             outputBuffer = new byte[outputByteCountGuess];
+
+        if (inputLength == 0)
+            return 0; // 空输入的压缩结果就是0字节
 
         int byteCount = lzf_compress(inputBytes, ref outputBuffer, inputLength);
 
@@ -146,6 +165,8 @@ public class CLZF2
         while (byteCount == 0)
         {
             outputByteCountGuess *= 2;
+            if (outputByteCountGuess > MAX_OUTPUT_BUFFER_SIZE)
+                throw new OutOfMemoryException("LZF compression exceeded the maximum allowed output size.");
             outputBuffer = new byte[outputByteCountGuess];
             byteCount = lzf_compress(inputBytes, ref outputBuffer, inputLength);
         }
@@ -160,6 +181,7 @@ public class CLZF2
     /// <returns>Decompressed bytes.</returns>
     public static byte[] Decompress(byte[] inputBytes)
     {
+        if (inputBytes == null) throw new ArgumentNullException(nameof(inputBytes));
         return Decompress(inputBytes, inputBytes.Length);
     }
 
@@ -171,11 +193,16 @@ public class CLZF2
     /// <returns>Decompressed bytes.</returns>
     public static byte[] Decompress(byte[] inputBytes, int inputLength)
     {
+        if (inputBytes == null) throw new ArgumentNullException(nameof(inputBytes));
+        if (inputLength < 0 || inputLength > inputBytes.Length)
+            throw new ArgumentOutOfRangeException(nameof(inputLength), "Input length must be between 0 and inputBytes.Length.");
+
         byte[] tempBuffer = null;
         int byteCount = Decompress(inputBytes, ref tempBuffer, inputLength);
 
         byte[] outputBytes = new byte[byteCount];
-        Buffer.BlockCopy(tempBuffer, 0, outputBytes, 0, byteCount);
+        if (byteCount > 0)
+            Buffer.BlockCopy(tempBuffer, 0, outputBytes, 0, byteCount);
         return outputBytes;
     }
 
@@ -187,6 +214,7 @@ public class CLZF2
     /// <returns>Length of output.</returns>
     public static int Decompress(byte[] inputBytes, ref byte[] outputBuffer)
     {
+        if (inputBytes == null) throw new ArgumentNullException(nameof(inputBytes));
         return Decompress(inputBytes, ref outputBuffer, inputBytes.Length);
     }
 
@@ -199,10 +227,17 @@ public class CLZF2
     /// <returns>Length of output.</returns>
     public static int Decompress(byte[] inputBytes, ref byte[] outputBuffer, int inputLength)
     {
+        if (inputBytes == null) throw new ArgumentNullException(nameof(inputBytes));
+        if (inputLength < 0 || inputLength > inputBytes.Length)
+            throw new ArgumentOutOfRangeException(nameof(inputLength), "Input length must be between 0 and inputBytes.Length.");
+
         // Estimate necessary output buffer size.
-        int outputByteCountGuess = inputBytes.Length * BUFFER_SIZE_ESTIMATE;
+        int outputByteCountGuess = inputLength * BUFFER_SIZE_ESTIMATE;
         if (outputBuffer == null || outputBuffer.Length < outputByteCountGuess)
             outputBuffer = new byte[outputByteCountGuess];
+
+        if (inputLength == 0)
+            return 0; // 空输入的解压结果就是0字节
 
         int byteCount = lzf_decompress(inputBytes, ref outputBuffer, inputLength);
 
@@ -210,6 +245,8 @@ public class CLZF2
         while (byteCount == 0)
         {
             outputByteCountGuess *= 2;
+            if (outputByteCountGuess > MAX_OUTPUT_BUFFER_SIZE)
+                throw new OutOfMemoryException("LZF decompression exceeded the maximum allowed output size.");
             outputBuffer = new byte[outputByteCountGuess];
             byteCount = lzf_decompress(inputBytes, ref outputBuffer, inputLength);
         }
@@ -237,7 +274,9 @@ public class CLZF2
         uint oidx = 0;
         long reference;
 
-        uint hval = (uint)(((input[iidx]) << 8) | input[iidx + 1]); // FRST(in_data, iidx);
+        uint hval = 0;
+        if (inputLength >= 2)
+            hval = (uint)(((input[iidx]) << 8) | input[iidx + 1]); // FRST(in_data, iidx);
         long off;
         int lit = 0;
 
@@ -300,15 +339,25 @@ public class CLZF2
                         output[oidx++] = (byte)off;
 
                         iidx += len - 1;
-                        hval = (uint)(((input[iidx]) << 8) | input[iidx + 1]);
+                        // A match that reaches the very end of the input has no room for
+                        // the two-byte lookahead hashes below; skip them so we never read
+                        // past the end of the input. Leftover bytes are emitted as literals.
+                        if (iidx + 2 < (uint)inputLength)
+                        {
+                            hval = (uint)(((input[iidx]) << 8) | input[iidx + 1]);
 
-                        hval = (hval << 8) | input[iidx + 2];
-                        HashTable[((hval ^ (hval << 5)) >> (int)(((3 * 8 - HLOG)) - hval * 5) & (HSIZE - 1))] = iidx;
-                        iidx++;
+                            hval = (hval << 8) | input[iidx + 2];
+                            HashTable[((hval ^ (hval << 5)) >> (int)(((3 * 8 - HLOG)) - hval * 5) & (HSIZE - 1))] = iidx;
+                            iidx++;
 
-                        hval = (hval << 8) | input[iidx + 2];
-                        HashTable[((hval ^ (hval << 5)) >> (int)(((3 * 8 - HLOG)) - hval * 5) & (HSIZE - 1))] = iidx;
-                        iidx++;
+                            hval = (hval << 8) | input[iidx + 2];
+                            HashTable[((hval ^ (hval << 5)) >> (int)(((3 * 8 - HLOG)) - hval * 5) & (HSIZE - 1))] = iidx;
+                            iidx++;
+                        }
+                        else
+                        {
+                            iidx = (uint)inputLength; // match consumes the remainder of the input
+                        }
                         continue;
                     }
                 }
@@ -364,11 +413,17 @@ public class CLZF2
 
         do
         {
+            if (iidx >= (uint)inputLength)
+                throw new ArgumentException("Corrupt LZF data: unexpected end of input.", nameof(input));
+
             uint ctrl = input[iidx++];
 
             if (ctrl < (1 << 5)) /* literal run */
             {
                 ctrl++;
+
+                if (iidx + ctrl > (uint)inputLength)
+                    throw new ArgumentException("Corrupt LZF data: literal run exceeds input length.", nameof(input));
 
                 if (oidx + ctrl > outputLength)
                 {
@@ -387,7 +442,14 @@ public class CLZF2
                 int reference = (int)(oidx - ((ctrl & 0x1f) << 8) - 1);
 
                 if (len == 7)
+                {
+                    if (iidx >= (uint)inputLength)
+                        throw new ArgumentException("Corrupt LZF data: unexpected end of input.", nameof(input));
                     len += input[iidx++];
+                }
+
+                if (iidx >= (uint)inputLength)
+                    throw new ArgumentException("Corrupt LZF data: unexpected end of input.", nameof(input));
 
                 reference -= input[iidx++];
 
@@ -400,7 +462,7 @@ public class CLZF2
                 if (reference < 0)
                 {
                     //SET_ERRNO (EINVAL);
-                    return 0;
+                    throw new ArgumentException("Corrupt LZF data: back-reference exceeds already produced output.", nameof(input));
                 }
 
                 output[oidx++] = output[reference++];
