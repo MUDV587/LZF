@@ -5,7 +5,21 @@ While LZF compression might not have the great compression ratio of some algorit
 
 Some implementations of LZF unfortunately are a bit careless with memory allocations which could potentially cause some issues if you're on a platforms with limited memory and/or where you're trying to manage and minimize garbage collection. This implementation attempts to address this by allowing the re-use of a single buffer for all work and output.
 
-For more algorithm details, refer to [Marc Lehmann's original release](http://oldhome.schmorp.de/marc/liblzf.html).
+For more algorithm details, refer to [Marc Lehmann's original release](https://oldhome.schmorp.de/marc/liblzf.html).
+
+## Installation (UPM)
+
+This fork is maintained as a UPM package at `com.chasepettit.lzf`. In your Unity project's `Packages/manifest.json`, add:
+
+```json
+{
+  "dependencies": {
+    "com.chasepettit.lzf": "https://github.com/MUDV587/LZF.git#feature-upm"
+  }
+}
+```
+
+Or install it from the Package Manager via "Add package from git URL".
 
 ## Usage
 
@@ -15,7 +29,7 @@ If you're looking to keep memory allocations as limited as possible, you'll want
 
 ```csharp
 public static int Compress(byte[] inputBytes, ref byte[] outputBuffer)
-public static int Deompress(byte[] inputBytes, ref byte[] outputBuffer)
+public static int Decompress(byte[] inputBytes, ref byte[] outputBuffer)
 ```
 
 * `inputBytes`: Input bytes to compress/decompress.
@@ -47,5 +61,9 @@ using(FileStream outputFile = File.OpenWrite(outputFilePath))
 }
 ```
 
+## Fork / 来源
+
+This repository is a fork of [Chaser324/LZF](https://github.com/Chaser324/LZF), restructured as a UPM package (`feature-upm` branch). Original upstream history is preserved.
+
 ## License
-This code is under a BSD license. This essentially means you can freely use it as long as you include the copyright statements as attribution. See the license file for details.
+This code is under the BSD 3-Clause license. This essentially means you can freely use it as long as you include the copyright statements as attribution. See the [LICENSE](LICENSE) file for details.

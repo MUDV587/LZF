@@ -8,8 +8,8 @@
     "LZF",
     "Compress"
   ],
-  "license": "MIT",
-  "category": "Compress",
+  "license": "BSD-3-Clause",
+  "category": "Framework",
   "author": {
     "name": "Chase Pettit",
     "email": "",
@@ -17,8 +17,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Chaser324/LZF.git",
-    "revision": "fe16f2ccde8a8bc39b5b9697476999ae5ea01269"
+    "url": "https://github.com/MUDV587/LZF.git"
   },
   "type": "library"
 }
